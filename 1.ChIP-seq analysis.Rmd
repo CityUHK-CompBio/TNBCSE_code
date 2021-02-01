@@ -1,0 +1,42 @@
+---
+title: "1.ChIP-seq analysis"
+author: "Hao Huang"
+date: "2021/2/1"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### 1 ChIP-seq alignment
+
+```
+bowtie -t -k 1 -m 1 -p 20 Bowtie_Index_hg19/hg19 $id --sam | samtools view -q 255 -bS - > $id.bam
+
+```
+
+### 2 coverage tracks
+
+```
+samtools sort -@ 40 -o ${id}.sorted.bam $id
+samtools index ${id}.sorted.bam
+bamCoverage --bam ${id}.sorted.bam -o ${id}.sorted.CPM.smooth.bw --binSize 50 --normalizeUsing CPM --effectiveGenomeSize 2864785220 --smoothLength 200
+
+```
+
+### 3 identification of chromation states
+
+```
+java -jar ChromHMM.jar BinarizeBam -b 200 hg19.chrom.sizes $bam MarkTable_H3K27ac.txt Chromatin_Bins
+java -jar ChromHMM.jar LearnModel -b 200 Chromatin_Bins ChromatinStates 2 hg19
+
+```
+
+### 4 the density of normalized mapped reads in SEs
+
+```
+bamliquidator_batch $bam -r $SE -o $SE_density -f -e 200
+
+```
+

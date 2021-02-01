@@ -1,0 +1,59 @@
+---
+title: "2. RNA-seq analysis"
+author: "Hao Huang"
+date: "2021/2/1"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### 1 RNA-seq alignment
+
+```
+STAR --runThreadN 60 --readFilesCommand gunzip -c --genomeDir hg19_Index --readFilesIn $read1 $read2 --outFileNamePrefix $STAR_alignment --outFilterType BySJout --outFilterMultimapNmax 1 --outFilterMismatchNmax 2 --outSAMtype BAM Unsorted --quantMode TranscriptomeSAM GeneCounts
+
+```
+
+### 2 Differentially expressed genes
+
+#### 2.1 DESeq2 -- for CCLE data
+
+```{r}
+library(DESeq2)
+load("CCLE_counts.rda")
+## counts -- counts from CCLE RNA-seq data
+## cellnames -- names of cell lines
+## condition -- subtype information of cell lines
+
+cds <- DESeqDataSetFromMatrix(countData = counts,
+                              colData = cellnames,
+                              design = ~ condition)
+colData(cds)$condition <- relevel(colData(cds)$condition , "nonTNBC")
+dds <- DESeq(cds)
+DEGs_CCLE <- results(dds)
+
+```
+
+#### 2.2 limma -- for TPM from TCGA-BRCA cohort
+
+```{r}
+library(limma)
+load("BRCA.rda")
+
+## exp -- tpm from TCGA-BRCA cohort
+## BRCAsamples.label -- labels of samples from TCGA-BRCA cohort
+
+exp.log <- log2(exp+1)
+group_list <- factor(c(rep("nonTNBC",length(nonTNBCsamples.label)), rep("TNBC",length(BRCAsamples.label))))
+group_list <- relevel(group_list , "nonTNBC")
+
+design <- model.matrix(~group_list)
+colnames(design) <- levels(group_list)
+rownames(design) <- colnames(exp.log)
+fit <- lmFit(exp.log, design)
+fit <- eBayes(fit, trend=TRUE)
+DEGs <- topTable(fit, coef=2,n=Inf)
+
+```

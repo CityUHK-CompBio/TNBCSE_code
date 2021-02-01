@@ -1,0 +1,47 @@
+---
+title: "3. RRBS analysis"
+author: "Hao Huang"
+date: "2021/2/1"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### 1. RRBS alignment
+
+```
+trim_galore --rrbs $RRBS_data
+
+bismark --genome bismark_genome_hg19 $RRBS_data -p 20 -o .
+
+```
+
+### 2. methylation level of SEs
+
+```{r}
+library(methylKit)
+
+## methylation level
+methylist <- processBismarkAln(location = list(RRBS.bam),
+                               sample.id=list(cell.name), assembly="hg19", 
+                               read.context="CpG",save.folder=getwd(),
+                               treatment=c(0,0,0,0,0,1,1,1,1,1,1,1,1,1,1))
+
+methylist.filtered.myobj=filterByCoverage(methylist,lo.count=10,lo.perc=NULL,
+                                hi.count=NULL,hi.perc=99.9)
+
+methylist.filtered.myobj.norm <- normalizeCoverage(methylist.filtered.myobj)
+
+## methylation level of SEs
+region <- SEs
+colnames(region) <- c("chr","start","end","se_name")
+region <- toGRanges(region)
+se.methy=regionCounts(methylist.filtered.myobj.norm,region)
+meth=methylKit::unite(se.methy, min.per.group=1L)
+methy.mat.C <- data.frame(meth)[,c("numCs")]
+methy.mat.Total <- data.frame(meth)[,c("coverage")]
+methy.mat.methylevel <- methy.mat.C/methy.mat.Total
+
+```

@@ -1,0 +1,41 @@
+---
+title: "4.Regulatory network inference and master regulator analysis"
+author: "Hao Huang"
+date: "2021/2/1"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(limma)
+library(Homo.sapiens)
+library(HTSanalyzeR2)
+library(org.Hs.eg.db)
+library(KEGGREST)
+library(minet)
+library(RTN)
+library(RedeR)
+library(snow)
+library(annotate)
+library(AnnotationDbi)
+library(clusterProfiler)
+library(org.Hs.eg.db)
+
+signatures <- Hallmarks$AI
+
+rtni <- tni.constructor(expData = exp, regulatoryElements = TFs)
+rtni1 <- tni.permutation(rtni, verbose = T, estimator="spearman")  
+rtni1 <- tni.bootstrap(rtni1) 
+rtni2 <- tni.dpi.filter(rtni1) 
+
+rtna1 <- tni2tna.preprocess(object=rtni2, phenotype=target.log2FC,
+                                hits=signatures)
+rtna2 <- tna.mra(rtna1, tnet="dpi")
+rtna2 <- tna.overlap(rtna2)
+rtna.rslt <- rtna2@results$MRA.results
+rtna.rslt ## MRA results
+
+```
